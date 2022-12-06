@@ -2,7 +2,7 @@
 #                                                                              #
 #                 VIDEO CAMERA TRAP AND SPATIAL CAPTURE-RECAPTURE              #
 #                          FOR WOLF DENSITY ESTIMATE                           #
-#    José Jiménez, Daniel Cara, Francisco García-Dominguez & Jose Barasona     # 
+#    JosÃ© JimÃ©nez, Daniel Cara, Francisco GarcÃ­a-Dominguez & Jose Barasona     # 
 #                            01/12/2022 18:39:54                               #
 #                                                                              #
 #==============================================================================#
@@ -95,10 +95,10 @@ spiderplotJJ(datYknown, traplocs, buffer=2000, lwd=1)
 code <- nimbleCode({
   
   ## Scale for the half normal detection function
-  alpha1 ~ dnorm(0,.1)
+  alpha1 ~ dnorm(0,.01)
   sigma<- sqrt(1/(2*alpha1))
   psi ~ dbeta(1,1)  # data augmentation parameter
-  r ~ dgamma(.1,.1)
+  r ~ dgamma(.01,.01)
   # Hyperparameters
   sigma.p ~ dunif(0, 10)
   mu0 ~ dnorm(0, 0.01)
@@ -173,7 +173,7 @@ str(data   <-  list(Y=y,
                     xlim=xlim, 
                     ylim=ylim))
 ## Initial values
-str(inits  <-  list(alpha1=runif(1,0,0.1),
+str(inits  <-  list(alpha1=runif(1,0.01,0.06),
                     psi=runif(1,0,1),
                     sigma.p=runif(1,0,3),
                     mu0=runif(1,-5,-1),
