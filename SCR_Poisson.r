@@ -2,6 +2,7 @@
 #                                                                              #
 #                 VIDEO CAMERA TRAP AND SPATIAL CAPTURE-RECAPTURE              #
 #                          FOR WOLF DENSITY ESTIMATE                           #
+#                                  Poisson                                     #
 #    José Jiménez, Daniel Cara, Francisco García-Dominguez & Jose Barasona     # 
 #                            01/12/2022 18:39:54                               #
 #                                                                              #
