@@ -2,6 +2,7 @@
 #                                                                              #
 #                 VIDEO CAMERA TRAP AND SPATIAL CAPTURE-RECAPTURE              #
 #                          FOR WOLF DENSITY ESTIMATE                           #
+#                          Negative binomial - RE                              #
 #    José Jiménez, Daniel Cara, Francisco García-Dominguez & Jose Barasona     # 
 #                            01/12/2022 18:39:54                               #
 #                                                                              #
@@ -18,7 +19,7 @@ library(nimble)
 
 ## Preparing data
 #=================
-setwd('C:/Users/Usuario/OneDrive/30 Proyecto Lobo Suido/05 R code/Suido/DEF')
+setwd('C:/...')
 source("Spiderplot_SCR.R")
 
 # Operation mask. 119 days (occasions)
@@ -65,7 +66,7 @@ Yaug[1:nind, , ] <- datYknown
 y<-apply(Yaug, c(1,2), sum)  # Summarized by traps
 
 # State space
-trapShape<-readOGR(dsn="C:/Users/Usuario/OneDrive/30 Proyecto Lobo Suido/01 data/GIS",layer="traps")
+trapShape<-readOGR(dsn="C:/.../GIS",layer="traps")
 buffTrap<-buffer(trapShape, width = 9947.409)
 plot(buffTrap)
 points(trapShape)
@@ -234,58 +235,3 @@ outNim <- runMCMC(CompMCMC, niter = ni , nburnin = nb , inits=inits,
 ## Results
 outNim$WAIC
 summary(outNim$samples)
-
-# We examine traceplots
-xyplot(outNim$samples[,c('N','D','mu0','sigma','sigma.p','psi','r')])
-
-# N histogram
-hist(as.matrix(outNim$samples[,'N']),xlim=c(25,50), xlab="Population size", main="")
-mode <- function(x) {
-  d <- density(x)
-  d$x[which.max(d$y)]
-}
-abline(v=mode(as.matrix(outNim$samples[,'N'])), lty=2, lwd=3, col="blue")
-
-
-# Assessing fit of the model
-#========================================  
-samples<-as.matrix(outNim$samples[,c('T1obs','T1sim','T2obs','T2sim','T3obs','T3sim')])
-par(mfrow=c(2,2),
-    mar=c(6,5,4,4), las=1)  
-options(scipen=999)
-# Fit statistic 1: individual x trap frequencies.
-pvalue<-round(mean(samples[,'T1sim'] > samples[,'T1obs']), 2)
-plot(samples[,'T1sim'], samples[,'T1obs'], xlim=c(100,300), ylim=c(100,300),
-  xlab = "Discrepancy actual data", ylab = "Discrepancy replicate data", 
-  bty ="n", las=1, col="grey50", main="Individual x trap\n frequencies", type='n',
-  sub=paste("p-value=", pvalue,""))
-idx1 = samples[,'T1sim']-samples[,'T1obs']>0
-idx2 = samples[,'T1sim']-samples[,'T1obs']<0   
-points(samples[,'T1sim'][idx2],samples[,'T1obs'][idx2], col='#00000033', pch=1, cex=.15)
-points(samples[,'T1sim'][idx1],samples[,'T1obs'][idx1], col='#FF000033', pch=1, cex=.15)
-segments(100,100,300,300, lwd=2)
-
-# Fit statistic 2: Individual encounter frequencies.
-pvalue<-round(mean(samples[,'T2sim'] > samples[,'T2obs']), 2)
-plot(samples[,'T2sim'], samples[,'T2obs'], xlim=c(0,60), ylim=c(0,60), 
-  xlab = "Discrepancy actual data", ylab = "Discrepancy replicate data", 
-  bty ="n", las=1, col="grey50", main="Individual encounter\n frequencies", type='n',
-  sub=paste("p-value=", pvalue,""))
-idx1 = samples[,'T2sim']-samples[,'T2obs']>0
-idx2 = samples[,'T2sim']-samples[,'T2obs']<0   
-points(samples[,'T2sim'][idx2],samples[,'T2obs'][idx2], col='#00000033', pch=1, cex=.15) 
-points(samples[,'T2sim'][idx1],samples[,'T2obs'][idx1], col='#FF000033', pch=1, cex=.15)
-segments(0,0,60,60, lwd=2)
-
-# Fit statistic 3: Trap frequencies.
-pvalue<-round(mean(samples[,'T3sim'] > samples[,'T3obs']), 2)
-plot(samples[,'T3sim'], samples[,'T3obs'], xlim=c(5,60), ylim=c(5,60), 
-  xlab = "Discrepancy actual data", ylab = "Discrepancy replicate data", 
-  bty ="n", las=1, col="grey50", main="Trap encounter\n frequencies", type='n',
-  sub=paste("p-value=", pvalue,""))
-idx1 = samples[,'T3sim']-samples[,'T3obs']>0
-idx2 = samples[,'T3sim']-samples[,'T3obs']<0   
-points(samples[,'T3sim'][idx2],samples[,'T3obs'][idx2], col='#00000033', pch=1, cex=.15)
-points(samples[,'T3sim'][idx1],samples[,'T3obs'][idx1], col='#FF000033', pch=1, cex=.15)
-segments(0,0,60,60, lwd=2)
-
