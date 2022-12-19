@@ -1,136 +1,71 @@
 #==============================================================================#
 #                                                                              #
-#                             CAPTURA-RECAPTURA SECR                           #
-#                           LOBOS EN LA SIERRA DE SUIDO                        #
-#                                - PONTEVEDRA -                                #    
-#                                 José Jiménez                                 #
-#                                 Daniel Cara                                  #
-#                            03/02/2013 11:12:20 AM                            #
+#                 VIDEO CAMERA TRAP AND SPATIAL CAPTURE-RECAPTURE              #
+#                          FOR WOLF DENSITY ESTIMATE                           #
+#    JosÃ© JimÃ©nez, Daniel Cara, Francisco GarcÃ­a-Dominguez & Jose Barasona     # 
+#                            01/12/2022 18:39:54                               #
 #                                                                              #
 #==============================================================================#
 
-# Se ha llevado a cabo un estudio experimental de estima de tamaño de la 
-# población de lobo en la Sierra de Suido (Pontevedra) a partir de los datos
-# de fototrampeo obtenidos a lo largo del año 2015. Para ello se ha tratado
-# la información (historiales de captura, ubicación de las cámaras de
-# fototrampeo y periodos de operatividad de las trampas) con una aproximación
-# bayesiana de captura-recaptura espacialmente explícita (SCR).
-
+## Load libraries 
 library(coda)
 library(scrbook)
-library(secr)
 library(lattice)
-library(mcmcOutput)
 library(raster)
 library(rgdal)
 library(fields)
-library(ggplot2)
+library(nimble)
 
-# PREPARACIÓN DE DATOS
-#========================
-# Preparamos la máscara de operatividad
-setwd('C:/Users/Usuario/OneDrive/30 Proyecto Lobo Suido/01 data/')
+## Preparing data
+#=================
+setwd('C:/Users/Usuario/OneDrive/30 Proyecto Lobo Suido/05 R code/Suido/DEF')
+source("Spiderplot_SCR.R")
 
-# El número total de ocasiones de muestreo utilizados fue de 140 dias
-MASK<-data.matrix(read.table("MASK.txt", header=FALSE))
+# Operation mask. 119 days (occasions)
+Oper<-data.matrix(read.table("Oper.txt", header=FALSE))
 
-source("Funciones_SCR.R")
-
-
-library(secr)
-wolf.ch <- read.capthist("captsecr.txt", "trapssecr.txt", detector='count', noccasions=119)
+wolf.ch <- secr::read.capthist("capt.txt", "traps.txt", detector='count', noccasions=119)
 summary(wolf.ch)
 
-traplocs<-as.matrix(traps(wolf.ch))
-X<-data.matrix(traplocs)/1000
+traplocs<-as.matrix(secr::traps(wolf.ch))
+X<-data.matrix(traplocs)/1000  # Scale
 medX<- mean(X[,1])
 medY<- mean(X[,2])
-X[,1]<-(X[,1]-medX)
+X[,1]<-(X[,1]-medX)    # Center
 X[,2]<-(X[,2]-medY)
 
-plot(traplocs, asp=TRUE)
-plot(wolf.ch, border = 0, tracks = TRUE, varycol = TRUE, add=TRUE)
 wolf<-as.array(wolf.ch)
 wolf<- aperm(wolf,c(1,3,2))
 str(wolf)
 
 datYknown<- wolf
 
-# Operatividad total (cámaras). Una novedad en este estudio fue la 
-# movilidad de las cámaras. Se fueron desplazando para maximizar el número de
-# fotocapturas
-cat("Camera trapping days=", sum(MASK), "\n") # Cámaras-día
-# Media de dias de captura por cámara y trampa
-cat("Mean trapping days per camera=", mean(apply((MASK),1,sum)), "\n")
+cat("Camera trapping days=", sum(Oper), "\n") # camera trap-day
+# Mean days of capture per camera
+cat("Mean trapping days per camera=", mean(apply((Oper),1,sum)), "\n")
 
-K<-dim(MASK)[2] ;K     # Ocasiones de muestreo
-J<-dim(MASK)[1] ;J     # Número de ubicaciones de las cámaras  
+K<-dim(Oper)[2] ;K     # sampling occasions
+J<-dim(Oper)[1] ;J     # number of camera traps locations  
 
-# Ploteamos la operatividad de las cámara (amarillo: operativas; rojo: no
-# operativas)
-x<-as.matrix(MASK)  ## Tenemos que convertir esto en matriz
+# Operation mask plot
+x<-as.matrix(Oper)
 image(1:K,1:J,t(x), yaxt = "n", xlab="Occasion", ylab="", cex.lab=1.25)
 mtext(side = 2, "Camera", line = 2.5, cex=1.25)
 axis(2, rev(seq(1, J, by=2)))
 box()
 
-# Resumen de la operatividad por ocasiones de muestreo
-KT<-apply(MASK,1,sum)
-colnames(MASK)<-c(1:K)
-wtraps<-cbind(1:J,X,MASK)
+# Summarize operation mask by occasions
+KT<-apply(Oper,1,sum)
 
-
-M<-100 # Aumentado de datos que usamos (aproximadamente 3 x máximo estimado)
-
-## Aumentado de datos
-nind<- dim(datYknown)[1]; nind     # Es el número de individuos identificados
-
-SCRsmy(datYknown)
-Yaug <- array(0, dim = c(M, J, K)) # Aumentamos con M-nind "virtuales"
+M<-80 # data augmentation
+nind<- dim(datYknown)[1]; nind     # observed individuals
+Yaug <- array(0, dim = c(M, J, K)) # augmented data
 
 Yaug[1:nind, , ] <- datYknown
-y<-apply(Yaug, c(1,2), sum)
+y<-apply(Yaug, c(1,2), sum)  # Summarized by traps
 
-# Capturas por individuo. Se observa como el número de capturas reflejan muy
-# bien las dos manadas estudiadas, con un gran número de individuos en la 
-# primera (probablemente consituida por agregación de dos manadas) y/o la
-# presencia recurrente de individuos no territoriales
-tab<-table(1:nind)
-pts<-barplot(apply(apply(datYknown, c(1,3), sum),1,sum))
-axis(side=1, at=pts, labels=F, tick=T)
-axis(1, at = pts, labels = names(tab))
-
-# Capturas por trampa.
-tab<-table(1:J)
-pts<-barplot(apply(apply(datYknown, c(2:3), sum),1,sum))
-axis(side=1, at=pts, labels=F, tick=T)
-axis(1, at = pts, labels = names(tab))
-
-# Capturas por fecha. Hay un incremento de las capturas por trampa a medida
-# que se van desplazando, con el conocimiento adquirido
-tab<-table(1:K)
-pts<-barplot(apply(apply(datYknown, c(2,3), sum),2,sum))
-axis(side=1, at=pts, labels=F, tick=T)
-axis(1, at = pts, labels = names(tab))
-
-
-# COMPROBACIÓN DE ERRORES
-#==========================
-yr<-apply(datYknown,c(2,3),sum)
-sum(yr)
-MASK2<-MASK
-MASK2[MASK2>0]<-1
-sum(yr*MASK2)
-
-# Para localizar los valores negativos (errores en MASK) usamos:
-which((yr*MASK2)-yr<0, arr.in=TRUE) # No hay errores en MASK
-
-# Capturas por dispositivo/dia. Rate of capture success
-# Camera-trap
-cat("Captures/100 trap-days=", 100*sum(yr)/(sum(MASK)),"\n")
-
-# Generación del espacio de estados (S)
-trapShape<-readOGR(dsn="C:/Users/Usuario/OneDrive/30 Proyecto Lobo Suido/01 data/GIS",layer="traps")
+# State space
+trapShape<-readOGR(dsn="C:/.../GIS",layer="traps")
 buffTrap<-buffer(trapShape, width = 11708.1)
 plot(buffTrap)
 points(trapShape)
@@ -144,16 +79,16 @@ yu<-max(X[,2])+buff
 xlim=c(xl, xu)
 ylim=c(yl, yu)
 
-# Ploteado de capturas. Circulos proporcionales al numero de capturas
+# Capture plot
 plot(traplocs, pch="+", col="blue", 
   xlim=c(min(traplocs[,1])-2000,max(traplocs[,1])+2000), 
-  ylim=c(min(traplocs[,2])-2000,max(traplocs[,2])+2000), type="n", asp=TRUE)
+  ylim=c(min(traplocs[,2])-2000,max(traplocs[,2])+2000), type="n", asp=TRUE,
+  xlab="UTM X", ylab="UTM Y", font.lab=2)
 tot<-apply(datYknown, 2,sum)
-symbols(traplocs, circles=tot*50, inches=F,bg="#228B2219", fg=NULL, add=T)
+symbols(traplocs, circles=tot*75, inches=F,bg="#228B2219", fg=NULL, add=T)
 points(traplocs, pch="+", col="blue")
 # Spiderplot
-spiderplotJJ5(datYknown, traplocs, buffer=2000, lwd=1)
-
+spiderplotJJ(datYknown, traplocs, buffer=2000, lwd=1)
 
 library(nimble)
 ## define the model
@@ -161,8 +96,7 @@ code <- nimbleCode({
   
   alpha1 ~ dnorm(0,.01)
   sigma<- sqrt(1/(2*alpha1))
-  psi ~ dbeta(1,1)  # Probabilidad de que un ind. esté en la población
-  # Random effects hyperparameter
+  psi ~ dbeta(1,1) 
   p0 ~ dunif(0, 5)
   
   for(i in 1:M){
@@ -209,10 +143,12 @@ code <- nimbleCode({
   D<-N/A
 })
 
+## Bundle constants
 str(constants<-list(M=M, 
                     J=J, 
                     A=A))
 
+## Bundle data
 str(data   <-  list(Y=y, 
                     X=X, 
                     KT=KT,
@@ -221,7 +157,7 @@ str(data   <-  list(Y=y,
                     xlim=xlim, 
                     ylim=ylim))
 
-
+## Initial values
 str(inits  <-  list(alpha1=runif(1,0.01,0.06),
                     psi=runif(1,0,1),
                     p0=runif(1,0,1),
@@ -229,6 +165,7 @@ str(inits  <-  list(alpha1=runif(1,0.01,0.06),
                     s=X[sample(1:J, size=M, replace=TRUE),],
                     z=c(rep(1, nind), rbinom((M-nind),1,0.2))))
 
+## Create NIMBLE Model
 Rmodel <- nimbleModel(code=code, constants=constants, data=data, inits=inits)
 Rmodel$initializeInfo()
 Rmodel$calculate()
@@ -253,60 +190,15 @@ MCMC <- buildMCMC(mcmc)
 CompMCMC <- compileNimble(MCMC, project = Rmodel)
 
 
-# Ejecutamos el modelo
-nb=5000*5        # Iteraciones a desechar
-ni=25000*5 +nb*5  # Iteraciones
-nc=3              # Cadenas
+## MCMC settings
+nb=5000*5 
+ni=25000*5 +nb*5
+nc=3 
 
 outNim <- runMCMC(CompMCMC, niter = ni , nburnin = nb , inits=inits, 
                   nchains = nc, WAIC=TRUE, setSeed = FALSE, 
                   progressBar = TRUE, samplesAsCodaMCMC = TRUE)
 
 
-summary(outNim$samples[,c('N','D','sigma','p0','psi')])
-
-save(outNim, file="Lobo_Poisson_GoF.RData")
-
-samples<-as.matrix(outNim$samples)
-
-# Assessing fit of the observation model
-#========================================
-par(mfrow=c(2,2),
-    mar=c(6,5,4,4), las=1)  
-options(scipen=999)
-# Fit statistic 1: individual x trap frequencies.
-(pvalue<-round(mean(samples[,'T1sim'] > samples[,'T1obs']), 2))
-plot(samples[,'T1sim'], samples[,'T1obs'], xlim=c(100,275), ylim=c(100,275),
-  xlab = "Discrepancy actual data", ylab = "Discrepancy replicate data", 
-  bty ="n", las=1, col="grey50", main="Individual x trap\n frequencies", type='n',
-  sub=paste("p-value=", pvalue,""))
-idx1 = samples[,'T1sim']-samples[,'T1obs']>0
-idx2 = samples[,'T1sim']-samples[,'T1obs']<0   
-points(samples[,'T1sim'][idx2],samples[,'T1obs'][idx2], col='#00000033', pch=1, cex=.5)
-points(samples[,'T1sim'][idx1],samples[,'T1obs'][idx1], col='#FF000033', pch=1, cex=.5)
-segments(100,100,350,350, lwd=2)
-
-# Fit statistic 2: Individual encounter frequencies.
-(pvalue<-round(mean(samples[,'T2sim'] > samples[,'T2obs']), 2))
-plot(samples[,'T2sim'], samples[,'T2obs'], xlim=c(0,20), ylim=c(0,20), 
-  xlab = "Discrepancy actual data", ylab = "Discrepancy replicate data", 
-  bty ="n", las=1, col="grey50", main="Individual encounter\n frequencies", type='n',
-  sub=paste("p-value=", pvalue,""))
-idx1 = samples[,'T2sim']-samples[,'T2obs']>0
-idx2 = samples[,'T2sim']-samples[,'T2obs']<0   
-points(samples[,'T2sim'][idx2],samples[,'T2obs'][idx2], col='#00000033', pch=1, cex=.5) 
-points(samples[,'T2sim'][idx1],samples[,'T2obs'][idx1], col='#FF000033', pch=1, cex=.5)
-segments(0,0,100,100, lwd=2)
-
-# Fit statistic 3: Trap frequencies.
-(pvalue<-round(mean(samples[,'T3sim'] > samples[,'T3obs']), 2))
-plot(samples[,'T3sim'], samples[,'T3obs'], xlim=c(0,120), ylim=c(0,120), 
-  xlab = "Discrepancy actual data", ylab = "Discrepancy replicate data", 
-  bty ="n", las=1, col="grey50", main="Trap encounter\n frequencies", type='n',
-  sub=paste("p-value=", pvalue,""))
-idx1 = samples[,'T3sim']-samples[,'T3obs']>0
-idx2 = samples[,'T3sim']-samples[,'T3obs']<0   
-points(samples[,'T3sim'][idx2],samples[,'T3obs'][idx2], col='#00000033', pch=1, cex=.5)
-points(samples[,'T3sim'][idx1],samples[,'T3obs'][idx1], col='#FF000033', pch=1, cex=.5)
-segments(0,0,120,120, lwd=2)
+summary(outNim$samples)
 
