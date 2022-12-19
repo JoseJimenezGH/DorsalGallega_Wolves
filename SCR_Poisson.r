@@ -18,7 +18,7 @@ library(nimble)
 
 ## Preparing data
 #=================
-setwd('C:/Users/Usuario/OneDrive/30 Proyecto Lobo Suido/05 R code/Suido/DEF')
+setwd('C:/...')
 source("Spiderplot_SCR.R")
 
 # Operation mask. 119 days (occasions)
@@ -109,7 +109,8 @@ code <- nimbleCode({
     mu2[i,1:J] <- lam[i,1:J]*z[i]*KT[1:J]
     
     for(j in 1:J){
-      outj[i,j] <- sqrt(d2[i,j]) > buffer   
+      outj[i,j] <- sqrt(d2[i,j]) > buffer  # zero-trick by R. Chandler in
+      # https://groups.google.com/g/spatialcapturerecapture/c/NzqUovn8jF0/m/Plg2g6O6AgAJ 
       Y[i,j] ~ dpois(mu2[i,j])
       # components for fit diagnostics
       Ysim[i,j] ~ dpois(mu[i,j]*KT[j])       # simulated
