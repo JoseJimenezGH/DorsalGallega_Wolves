@@ -3,7 +3,7 @@
 #                 VIDEO CAMERA TRAP AND SPATIAL CAPTURE-RECAPTURE              #
 #                          FOR WOLF DENSITY ESTIMATE                           #
 #                         Poisson Model + random effects                       #
-#      Jose Jimenez, Daniel Cara, Francisco Garcia�Dominguez & Jose Barasona   # 
+#      Jose Jimenez, Daniel Cara, Francisco Garcia­Dominguez & Jose Barasona   # 
 #                            01/03/2023 17:13:21                               #
 #                                                                              #
 #==============================================================================#
@@ -103,7 +103,7 @@ code <- nimbleCode({
   
   alpha1 ~ dnorm(0,.01)
   sigma<- sqrt(1/(2*alpha1))
-  psi ~ dunif(0,1)  # Probabilidad de que un ind. esté en la población
+  psi ~ dunif(0,1)  # Probabilidad de que un ind. estÃ© en la poblaciÃ³n
   # Random effects hyperparameter
   sigma.p ~ dunif(0, 10)
   mu0 ~ dnorm(0, 0.1)
@@ -196,7 +196,8 @@ for(n in nodesSorted) {
   depNodes <- Rmodel$getDependencies(n)
   Rmodel$calculate(depNodes)
 }
-Rmodel$lp
+
+# Rmodel$lp
 Rmodel$calculate()
 
 Cmodel <- compileNimble(Rmodel)
