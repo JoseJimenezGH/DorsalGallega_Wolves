@@ -26,9 +26,9 @@ setwd('C:/...')
 source("Spiderplot_SCR.R")
 
 # Operation mask. 119 days (occasions)
-Oper<-data.matrix(read.table("Oper2.txt", header=FALSE))
+Oper<-data.matrix(read.table("Oper.txt", header=FALSE))
 
-wolf.ch <- secr::read.capthist("capt2.txt", "traps2.txt", detector='count', noccasions=119)
+wolf.ch <- secr::read.capthist("capt.txt", "traps.txt", detector='count', noccasions=119)
 summary(wolf.ch)
 
 traplocs<-as.matrix(secr::traps(wolf.ch))
