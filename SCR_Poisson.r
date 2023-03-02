@@ -3,7 +3,7 @@
 #                 VIDEO CAMERA TRAP AND SPATIAL CAPTURE-RECAPTURE              #
 #                          FOR WOLF DENSITY ESTIMATE                           #
 #                                 Poisson Model                                #
-#      Jose Jimenez, Daniel Cara, Francisco Garcia­Dominguez & Jose Barasona   # 
+#      Jose Jimenez, Daniel Cara, Francisco GarciaÂ­Dominguez & Jose Barasona   # 
 #                            01/03/2023 17:13:21                               #
 #                                                                              #
 #==============================================================================#
@@ -26,9 +26,9 @@ setwd('C:/...')
 source("Spiderplot_SCR.R")
 
 # Operation mask. 119 days (occasions)
-Oper<-data.matrix(read.table("Oper2.txt", header=FALSE))
+Oper<-data.matrix(read.table("Oper.txt", header=FALSE))
 
-wolf.ch <- secr::read.capthist("capt2.txt", "traps2.txt", detector='count', noccasions=119)
+wolf.ch <- secr::read.capthist("capt.txt", "traps.txt", detector='count', noccasions=119)
 summary(wolf.ch)
 
 traplocs<-as.matrix(secr::traps(wolf.ch))
@@ -103,7 +103,7 @@ code <- nimbleCode({
   
   alpha1 ~ dnorm(0,.01)
   sigma<- sqrt(1/(2*alpha1))
-  psi ~ dbeta(1,1)  # Probabilidad de que un ind. esté en la población
+  psi ~ dbeta(1,1)  # Probabilidad de que un ind. estÃ© en la poblaciÃ³n
   # Random effects hyperparameter
   p0 ~ dunif(0, 5)
   
