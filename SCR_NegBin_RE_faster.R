@@ -3,7 +3,7 @@
 #                 VIDEO CAMERA TRAP AND SPATIAL CAPTURE-RECAPTURE              #
 #                          FOR WOLF DENSITY ESTIMATE                           #
 #           Negative binomial Model + random effects - Faster version          #
-#      Jose Jimenez, Daniel Cara, Francisco Garcia­Dominguez & Jose Barasona   # 
+#      Jose Jimenez, Daniel Cara, Francisco GarciaÂ­Dominguez & Jose Barasona   # 
 #                            01/03/2023 17:13:21                               #
 #                                                                              #
 #==============================================================================#
