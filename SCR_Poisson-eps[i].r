@@ -68,7 +68,7 @@ Yaug[1:nind, , ] <- datYknown
 y<-apply(Yaug, c(1,2), sum)  # Summarized by traps
 
 # State space
-trapShape<-vect("C:/.../traps.shp")
+trapShape<-vect("C:/.../dataGIS/traps.shp")
 buff_trap<-buffer(trapShape, width = 10447.71)
 buffTrap<-aggregate(buff_trap)
 plot(buffTrap)
