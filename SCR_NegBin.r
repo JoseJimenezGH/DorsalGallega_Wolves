@@ -4,7 +4,7 @@
 #                          FOR WOLF DENSITY ESTIMATE                           #
 #    Jose Jimenez, Daniel Cara, Francisco Garcia-Dominguez & Jose Barasona     # 
 #                            01/12/2022 18:39:54                               #
-#                      *  Poisson-eps[individual,trap] *                       #
+#                         *  Negative binomial *                               #
 #                                                                              #
 #==============================================================================#
 
@@ -96,57 +96,52 @@ points(traplocs, pch="+", col="blue")
 spiderplotJJ(datYknown, traplocs, buffer=2000, lwd=1)
 
 
-
-library(nimble)
-## define the model
+## Define nimble model
 code <- nimbleCode({
   
+  ## Scale for the half normal detection function
   alpha1 ~ dnorm(0,.01)
   sigma<- sqrt(1/(2*alpha1))
-  psi ~ dbeta(1,1)
-  # Random effects hyperparameters
-  sigma.p ~ dunif(0, 10)
-  mu0 ~ dnorm(0, 0.01)
-  # Baseline detection rate
-  for(i in 1:M){
-    for(j in 1:J){
-      lp[i,j] ~ dnorm(mu0, sd=sigma.p)
-      log(p0[i,j]) <- lp[i,j]
-    }
-  }
-  
+  psi ~ dbeta(1,1)  # data augmentation parameter
+  r ~ dgamma(.01,.01)
+  p0 ~ dunif(0, 5) 
+   
   for(i in 1:M){
     z[i] ~ dbern(psi)
+    ## Activity centres of the observed individuals
     s[i,1] ~ dunif(xlim[1],xlim[2])
     s[i,2] ~ dunif(ylim[1],ylim[2])
-    d2[i,1:J]<- (s[i,1] - X[1:J,1])^2 + (s[i,2] - X[1:J,2])^2
-    lam[i,1:J]<- p0[i,1:J]*exp(- alpha1*d2[i,1:J])
-    mu[i,1:J] <- lam[i,1:J]*z[i]
-    mu2[i,1:J] <- lam[i,1:J]*z[i]*KT[1:J]
-    
-    for(j in 1:J){
-      outj[i,j] <- sqrt(d2[i,j]) > buffer   
-      Y[i,j] ~ dpois(mu2[i,j])
-      # components for fit diagnostics
-      Ysim[i,j] ~ dpois(mu[i,j]*KT[j])       # simulated
+
+    for(j in 1:J){   
+      d2[i,j]<- (s[i,1] - X[j,1])^2 + (s[i,2] - X[j,2])^2
+      lam[i,j]<- p0*exp(- alpha1*d2[i,j])*z[i]
+      p[i,j] <- r/(r+lam[i,j])
+      Y[i,j] ~ dnegbin(p[i,j], r*KT[j])
+      outj[i,j] <- sqrt(d2[i,j]) > buffer  # zero-trick by R. Chandler in
+      # https://groups.google.com/g/spatialcapturerecapture/c/NzqUovn8jF0/m/Plg2g6O6AgAJ
+      
+      # Components for fit diagnostics
+      Ysim[i,j] ~ dnegbin(p[i,j], r*KT[j])    # simulated
       Yexp[i,j] <- lam[i,j] * z[i] * KT[j]   # expected
-      # components for T1
+      
+      # Components for T1
       err1obs[i,j] <- (sqrt(Y[i,j]) - sqrt(Yexp[i,j]))^2
       err1sim[i,j] <- (sqrt(Ysim[i,j]) - sqrt(Yexp[i,j]))^2
     }
-    # components for T2
+    # Components for T2
     err2obs[i] <- (sqrt(sum(Y[i,1:J])) - sqrt(sum(Yexp[i,1:J])))^2
     err2sim[i] <- (sqrt(sum(Ysim[i,1:J])) - sqrt(sum(Yexp[i,1:J])))^2
 
     out[i] <- equals(sum(outj[i,1:J]),J)
-    zeros[i] ~ dbern(out[i])  
+    zeros[i] ~ dbern(out[i])    
   }
-  # components for T3
+
+  # Components for T3
   for(j in 1:J){
     err3obs[j] <- (sqrt(sum(Y[1:M,j])) - sqrt(sum(Yexp[1:M,j])))^2
     err3sim[j] <- (sqrt(sum(Ysim[1:M,j])) - sqrt(sum(Yexp[1:M,j])))^2
   }
-  
+
   # Fit diagnostics totals
   T1obs <- sum(err1obs[1:M,1:J])
   T1sim <- sum(err1sim[1:M,1:J])
@@ -154,16 +149,16 @@ code <- nimbleCode({
   T2sim <- sum(err2sim[1:M])
   T3obs <- sum(err3obs[1:J])
   T3sim <- sum(err3sim[1:J])  
-
+  ## Number of individuals in the population
   N<-sum(z[1:M])
   D<-N/A
 })
 
+
 ## Bundle constants
-str(constants<-list(M=M, 
+str(constants<-list(M=M,
                     J=J, 
                     A=area))
-
 ## Bundle data
 str(data   <-  list(Y=y, 
                     X=X, 
@@ -172,37 +167,27 @@ str(data   <-  list(Y=y,
                     buffer=buff,  
                     xlim=xlim, 
                     ylim=ylim))
-
 ## Initial values
-str(inits  <-  list(alpha1=runif(1,0.01,0.06),
+str(inits  <-  list(alpha1=runif(1,0,0.1),
                     psi=runif(1,0,1),
-                    sigma.p=runif(1,0,3),
-                    mu0=runif(1,-5,-1),
+                    p0=runif(1,0,2),
                     Ysim=y,
+                    r=runif(1,0,4),
                     s=X[sample(1:J, size=M, replace=TRUE),],
                     z=c(rep(1, nind), rbinom((M-nind),1,0.2))))
 
 ## Create NIMBLE Model
 Rmodel <- nimbleModel(code=code, constants=constants, data=data, inits=inits)
 Rmodel$initializeInfo()
-# initial values for "complex" quantities (by O. Gimenez in
-# https://gist.github.com/oliviergimenez/e41e9cb99174f2124f948308e19ca7ec)
-simNodes <- 'lp'
-simNodeScalar <- Rmodel$expandNodeNames(simNodes)
-allNodes <- Rmodel$getNodeNames()
-nodesSorted <- allNodes[allNodes %in% simNodeScalar]
-set.seed(1) # This makes the simulations here reproducible
-for(n in nodesSorted) {
-  Rmodel$simulate(n)
-  depNodes <- Rmodel$getDependencies(n)
-  Rmodel$calculate(depNodes)
-}
-Rmodel$lp
-Rmodel$calculate()
-Cmodel <- compileNimble(Rmodel)
 
-params<-c('N','D','sigma','mu0','sigma.p','psi','T1obs','T1sim','T2obs','T2sim','T3obs','T3sim')
-mcmc<-configureMCMC(Rmodel,  monitors=params, enableWAIC = TRUE, thin = 5) 
+Rmodel$calculate()
+
+Cmodel <- compileNimble(Rmodel)
+## Parameters monitored
+params<-c('N','D','sigma','p0','psi','r',
+          'T1obs','T1sim','T2obs','T2sim','T3obs','T3sim')
+mcmc<-configureMCMC(Rmodel,  monitors=params, thin = 5, enableWAIC = TRUE)
+
 # Rebuild and compile with new sampler
 mcmc$removeSamplers("s")
 ACnodes <- paste0("s[", 1:constants$M, ", 1:2]")
@@ -214,7 +199,6 @@ for(node in ACnodes) {
 }
 
 MCMC <- buildMCMC(mcmc) 
-
 CompMCMC <- compileNimble(MCMC, project = Rmodel)
 
 ## MCMC settings
@@ -222,6 +206,7 @@ nb<-5000*5
 ni<-25000*5 +nb*5
 nc<-3
 
+## Run MCMC
 outNim <- runMCMC(CompMCMC, niter = ni , nburnin = nb , inits=inits, 
                   nchains = nc, WAIC=TRUE, setSeed = FALSE, 
                   progressBar = TRUE, samplesAsCodaMCMC = TRUE)
