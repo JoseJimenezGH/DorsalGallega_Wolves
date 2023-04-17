@@ -21,7 +21,7 @@ library(nimble)
 
 ## Preparing data
 #=================
-setwd('C:/Users/Jose_/OneDrive/30 Proyecto Lobo Suido/05 R code/Suido/DEF_REV')
+setwd('C:/...')
 source("Spiderplot_SCR.R")
 
 # Operation mask. 119 days (occasions)
@@ -68,7 +68,7 @@ Yaug[1:nind, , ] <- datYknown
 y<-apply(Yaug, c(1,2), sum)  # Summarized by traps
 
 # State space
-trapShape<-vect("C:/Users/Jose_/OneDrive/30 Proyecto Lobo Suido/05 R code/Suido/DEF_REV/dataGIS/traps.shp")
+trapShape<-vect("C:/.../traps.shp")
 buff_trap<-buffer(trapShape, width = 10447.71)
 buffTrap<-aggregate(buff_trap)
 plot(buffTrap)
